@@ -129,12 +129,12 @@
 | | ${message}  | Set Variable  | subscription test message
 | | Set username and password   | authuser1     | password1
 | | Run Keyword And Expect Error                | The expected payload didn't arrive in the topic
-| | ... | Subscribe to MQTT Broker and Validate | broker.uri=127.0.0.1  | port=11883    | client.id=${client}
+| | ... | Subscribe to MQTT Broker and Validate | broker.uri=127.0.0.1  | port=1883    | client.id=${client}
 | | ... | topic=${topic}        | message=${message}
-| | Connect     | 127.0.0.1     | 11883
+| | Connect     | 127.0.0.1     | 1883
 | | Publish     | ${topic}      | test message with username and password   | qos=1
 | | Subscribe to MQTT Broker and Validate
-| | ...         | broker.uri=127.0.0.1  | port=11883    | client.id=${client}   | topic=${topic}        | message=test message with username and password
+| | ...         | broker.uri=127.0.0.1  | port=1883    | client.id=${client}   | topic=${topic}        | message=test message with username and password
 | | [Teardown]  | Disconnect
 
 | Publish to a broker that requires authentication with invalid password
@@ -144,7 +144,7 @@
 | | ${topic}    | Set Variable  | test
 | | Set username and password   | authuser1     | invalidpwd
 | | Run Keyword and expect error    | The client disconnected unexpectedly
-| | ...         | Connect     | 127.0.0.1     | 11883          | ${client}
+| | ...         | Connect     | 127.0.0.1     | 1883          | ${client}
 | | [Teardown]  | Disconnect
 
 | Subscribe async, publish 1 message, listen for and validate it is received
