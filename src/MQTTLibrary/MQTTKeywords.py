@@ -244,6 +244,75 @@ class MQTTKeywords(object):
         self._messages[topic] = []
         return messages[-limit:] if limit != 0 else messages
 
+    def poll(self, topic, timeout=1, limit=1, payload_contains=""):
+        """ Listen to a topic and return a list of message payloads received
+            within the specified time. Requires an async Subscribe to have been called previously.
+
+        `topic` topic to listen to
+
+        `timeout` duration to listen
+
+        `limit` the max number of payloads that will be returned. Specify 0
+            for no limit
+
+        `payload_contains` the payload text to look for, and return when 
+            payload has been found or fail if timeout or limit is reached
+
+        Examples:
+
+        Listen and get a list of all messages received within 5 seconds
+        | ${messages}= | Listen | test/test | timeout=5 | limit=0 |
+
+        Listen and get 1st message received within 60 seconds
+        | @{messages}= | Listen | test/test | timeout=60 | limit=1 |
+        | Length should be | ${messages} | 1 |
+
+        """
+        timer_start = time.time()
+        while time.time() < timer_start + self._loop_timeout:
+            if self._subscribed:
+                break;
+            time.sleep(1)
+        if not self._subscribed:
+            logger.warn('Cannot listen when not subscribed to a topic')
+            return []
+
+        if topic not in self._messages:
+            logger.warn('Cannot listen when not subscribed to topic: %s' % topic)
+            return []
+
+        # If enough messages have already been gathered, return them
+        if limit != 0 and len(self._messages[topic]) >= limit:
+            messages = self._messages[topic][:]  # Copy the list's contents
+            self._messages[topic] = []
+            return messages[-limit:]
+
+        seconds = convert_time(timeout)
+        limit = int(limit)
+
+        logger.info('Listening on topic: %s' % topic)
+        timer_start = time.time()
+        while time.time() < timer_start + seconds:
+            if limit == 0 or len(self._messages[topic]) < limit:
+                # If the loop is running in the background
+                # merely sleep here for a second or so and continue
+                # otherwise, do the loop ourselves
+                if self._background_mqttc:
+                    time.sleep(1)
+                else:
+                    self._mqttc.loop()
+            else:
+                # workaround for client to ack the publish. Otherwise,
+                # it seems that if client disconnects quickly, broker
+                # will not get the ack and publish the message again on
+                # next connect.
+                time.sleep(1)
+                break
+
+        messages = self._messages[topic][:]  # Copy the list's contents
+        self._messages[topic] = []
+        return messages[-limit:] if limit != 0 else messages
+    
     def subscribe_and_validate(self, topic, qos, payload, timeout=1):
         """ Subscribe to a topic and validate that the specified payload is
         received within timeout. It is required that a connection has been
